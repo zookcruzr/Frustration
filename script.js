@@ -28,7 +28,7 @@ function initGame() {
     deck = shuffleDeck(deck);
     dealCards(deck);
     updateUI();
-  }
+}
   
 
 // 2. Deck and Game Initialization //
@@ -159,49 +159,39 @@ function playSelectedCards() {
   hasPlayedMeld = true;
 }
 
-// Handle dropping a card onto a meld
 function handleCardDropOnMeld(event, meldGroup) {
-  event.preventDefault();
-
-  // Ensure the player has already played a meld
-  if (!hasPlayedMeld) {
-    alert('You must play a meld before you can add cards to any meld on the table.');
-    return;
-  }
-
-  // Get the dropped card
-  if (draggedIndex === null) return;
-  const droppedCard = playerHand[draggedIndex];
-  if (!droppedCard) return;
-
-  // Get the cards in the target meld
-  const meldCards = Array.from(meldGroup.querySelectorAll('img')).map(img => img.alt);
-
-  // Validate if the dropped card can extend the meld
-  if (!canExtendMeld(droppedCard, meldCards)) {
-    alert('The card cannot be added to this meld.');
-    return;
-  }
-
-  // Add the card to the meld
-  meldCards.push(droppedCard);
-  meldGroup.innerHTML = ''; // Clear the meld group
-  meldCards.forEach((card) => {
-    const img = document.createElement('img');
-    img.src = getCardImage(card);
-    img.alt = card;
-    img.style.width = '40px';
-    meldGroup.appendChild(img);
-  });
-
-  // Remove the card from the player's hand
-  playerHand.splice(draggedIndex, 1);
-  draggedIndex = null;
-
-  // Update the UI
-  updateUI();
+    event.preventDefault();
+    meldGroup.style.border = ''; // Remove highlight
+  
+    if (!hasPlayedMeld) {
+      alert('You must play a meld before you can add cards to any meld on the table.');
+      return;
+    }
+  
+    if (draggedIndex === null) return;
+    const droppedCard = playerHand[draggedIndex];
+    if (!droppedCard) return;
+  
+    const meldCards = Array.from(meldGroup.querySelectorAll('img')).map(img => img.alt);
+    if (!canExtendMeld(droppedCard, meldCards)) {
+      alert('The card cannot be added to this meld.');
+      return;
+    }
+  
+    meldCards.push(droppedCard);
+    meldGroup.innerHTML = '';
+    meldCards.forEach((card) => {
+      const img = document.createElement('img');
+      img.src = getCardImage(card);
+      img.alt = card;
+      img.style.width = '40px';
+      meldGroup.appendChild(img);
+    });
+  
+    playerHand.splice(draggedIndex, 1);
+    draggedIndex = null;
+    updateUI();
 }
-
 
 // 4. Validation Logic //
 
@@ -229,54 +219,51 @@ function findSets(hand) {
   return sets;
 }
 
-// Helper function to find runs (e.g., 4-5-6 of Hearts or Q-K-A)
 function findRuns(hand) {
-  const suitMap = {};
-  hand.forEach(card => {
-    if (card.startsWith('joker')) return; // Skip Jokers
-    const [rank, , suit] = card.split(' ');
-    if (!suitMap[suit]) suitMap[suit] = [];
-    suitMap[suit].push(rank);
-  });
-
-  const runs = [];
-  for (const suit in suitMap) {
-    const sortedRanks = suitMap[suit]
-      .map(rank => getRankValue(rank)) // Map ranks to numerical values
-      .filter(rank => rank !== -1) // Exclude invalid ranks
-      .sort((a, b) => a - b);
-
-    let currentRun = [];
-    let wildcardsUsed = countWildcards(hand);
-
-    for (let i = 0; i < sortedRanks.length; i++) {
-      if (currentRun.length === 0 || sortedRanks[i] === sortedRanks[i - 1] + 1) {
-        currentRun.push(sortedRanks[i]);
-      } else if (wildcardsUsed > 0) {
-        // Use a wildcard to fill the gap
-        currentRun.push(sortedRanks[i - 1] + 1); // Insert the missing rank
-        wildcardsUsed--;
-        i--; // Retry this rank
-      } else {
-        if (currentRun.length + wildcardsUsed >= 3) {
-          runs.push(currentRun.map(rank => `${getRankName(rank)} of ${suit}`));
+    const suitMap = {};
+    hand.forEach(card => {
+      if (card.startsWith('joker')) return; // Skip Jokers
+      const [rank, , suit] = card.split(' ');
+      if (!suitMap[suit]) suitMap[suit] = [];
+      suitMap[suit].push(rank);
+    });
+  
+    const runs = [];
+    for (const suit in suitMap) {
+      const sortedRanks = suitMap[suit]
+        .map(rank => getRankValue(rank))
+        .filter(rank => rank !== -1)
+        .sort((a, b) => a - b);
+  
+      let currentRun = [];
+      let wildcardsUsed = countWildcards(hand);
+  
+      for (let i = 0; i < sortedRanks.length; i++) {
+        if (currentRun.length === 0 || sortedRanks[i] === sortedRanks[i - 1] + 1) {
+          currentRun.push(sortedRanks[i]);
+        } else if (wildcardsUsed > 0) {
+          currentRun.push(sortedRanks[i - 1] + 1);
+          wildcardsUsed--;
+          i--;
+        } else {
+          if (currentRun.length + wildcardsUsed >= 3) {
+            runs.push(currentRun.map(rank => `${getRankName(rank)} of ${suit}`));
+          }
+          currentRun = [sortedRanks[i]];
         }
-        currentRun = [sortedRanks[i]];
+      }
+  
+      if (currentRun.length + wildcardsUsed >= 3) {
+        runs.push(currentRun.map(rank => `${getRankName(rank)} of ${suit}`));
+      }
+  
+      // Special case: Allow Ace as a high card (Q-K-A)
+      if (sortedRanks.includes(12) && sortedRanks.includes(11) && sortedRanks.includes(0)) {
+        runs.push(['Q', 'K', 'A'].map(rank => `${rank} of ${suit}`));
       }
     }
-
-    // Check the final run
-    if (currentRun.length + wildcardsUsed >= 3) {
-      runs.push(currentRun.map(rank => `${getRankName(rank)} of ${suit}`));
-    }
-
-    // Special case: Allow Ace as a high card (Q-K-A)
-    if (sortedRanks.includes(12) && sortedRanks.includes(11) && sortedRanks.includes(0)) {
-      runs.push(['Q', 'K', 'A'].map(rank => `${rank} of ${suit}`));
-    }
-  }
-
-  return runs;
+  
+    return runs;
 }
 
 // Validate if a card can extend a meld
