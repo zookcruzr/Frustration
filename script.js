@@ -75,29 +75,38 @@ function dealCards(deck) {
 
 // Draw a card from the draw pile or discard pile
 function drawFromPile(pileType) {
-  if (playerHand.length >= 11) {
-    alert('You already have the maximum number of cards (11). Discard a card first.');
-    return;
-  }
-  let drawnCard;
-  if (pileType === 'draw') {
-    if (deck.length > 0) {
+    if (playerHand.length >= 11) {
+      alert('You already have the maximum number of cards (11). Discard a card first.');
+      return;
+    }
+  
+    let drawnCard;
+  
+    if (pileType === 'draw') {
+      if (deck.length === 0) {
+        // Reshuffle the discard pile into the draw pile
+        if (discardPile.length <= 1) {
+          alert('Both the draw pile and discard pile are empty!');
+          return;
+        }
+        const topCard = discardPile.pop(); // Keep the top card of the discard pile
+        deck = shuffleDeck([...discardPile]); // Shuffle the remaining discard pile
+        discardPile = [topCard]; // Restore the top card to the discard pile
+        console.log('Reshuffled discard pile into draw pile.');
+      }
       drawnCard = deck.pop();
-    } else {
-      alert('The draw pile is empty!');
-      return;
+    } else if (pileType === 'discard') {
+      if (discardPile.length > 0) {
+        drawnCard = discardPile.pop();
+      } else {
+        alert('The discard pile is empty!');
+        return;
+      }
     }
-  } else if (pileType === 'discard') {
-    if (discardPile.length > 0) {
-      drawnCard = discardPile.pop();
-    } else {
-      alert('The discard pile is empty!');
-      return;
-    }
-  }
-  playerHand.push(drawnCard);
-  updateUI();
-  console.log(`You drew: ${drawnCard}`);
+  
+    playerHand.push(drawnCard);
+    updateUI();
+    console.log(`You drew: ${drawnCard}`);
 }
 
 // Select/Deselect a card in the player's hand
@@ -403,32 +412,45 @@ function drop(targetIndex) {
 
 // Show melds dynamically
 function showMeld(meldElement, cards) {
-  if (!meldElement) {
-    console.error('Meld space not found!');
-    return;
-  }
-
-  // Create a new meld group container
-  const meldGroup = document.createElement('div');
-  meldGroup.classList.add('meld-group');
-  meldGroup.setAttribute('draggable', true); // Make the meld group draggable
-  meldGroup.addEventListener('dragover', (e) => e.preventDefault());
-  meldGroup.addEventListener('drop', (e) => handleCardDropOnMeld(e, meldGroup));
-
-  // Sort the cards in the meld
-  const sortedCards = sortMeld(cards);
-
-  // Add cards to the meld group
-  sortedCards.forEach((card) => {
-    const img = document.createElement('img');
-    img.src = getCardImage(card);
-    img.alt = card;
-    img.style.width = '40px'; // Adjust size for meld space
-    meldGroup.appendChild(img);
-  });
-
-  // Add the meld group to the meld space
-  meldElement.appendChild(meldGroup);
+    if (!meldElement) {
+      console.error('Meld space not found!');
+      return;
+    }
+  
+    // Create a new meld group container
+    const meldGroup = document.createElement('div');
+    meldGroup.classList.add('meld-group');
+    meldGroup.setAttribute('draggable', true); // Make the meld group draggable
+  
+    // Add drag-and-drop event listeners
+    meldGroup.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      meldGroup.style.border = '2px dashed green'; // Highlight valid target
+    });
+  
+    meldGroup.addEventListener('dragleave', () => {
+      meldGroup.style.border = ''; // Remove highlight
+    });
+  
+    meldGroup.addEventListener('drop', (e) => {
+      meldGroup.style.border = ''; // Remove highlight
+      handleCardDropOnMeld(e, meldGroup);
+    });
+  
+    // Sort the cards in the meld
+    const sortedCards = sortMeld(cards);
+  
+    // Add cards to the meld group
+    sortedCards.forEach((card) => {
+      const img = document.createElement('img');
+      img.src = getCardImage(card);
+      img.alt = card;
+      img.style.width = '40px'; // Adjust size for meld space
+      meldGroup.appendChild(img);
+    });
+  
+    // Add the meld group to the meld space
+    meldElement.appendChild(meldGroup);
 }
 
 
@@ -469,67 +491,42 @@ function attemptMeld(hand, playerKey) {
   return false; // No meld possible
 }
 
-// Simulate other players' turns
 function simulateOtherPlayersTurns() {
-  // Simulate top-right player drawing and discarding
-  setTimeout(() => {
-    const drawnCard = deck.pop();
-    if (!drawnCard) {
-      console.log('Draw pile is empty!');
-      return;
-    }
-    topRightPlayerHand.push(drawnCard);
-    const melded = attemptMeld(topRightPlayerHand, 'topRight');
-    if (!melded) {
-      const discardedCard = topRightPlayerHand.shift(); // Discard the first card
-      discardPile.push(discardedCard);
-      updateUI();
-      console.log(`Top-right player drew: ${drawnCard}, discarded: ${discardedCard}`);
-    } else {
-      updateUI();
-      console.log(`Top-right player drew: ${drawnCard}, melded.`);
-    }
-  }, 1000);
-
-  // Simulate top-left player drawing and discarding
-  setTimeout(() => {
-    const drawnCard = deck.pop();
-    if (!drawnCard) {
-      console.log('Draw pile is empty!');
-      return;
-    }
-    topLeftPlayerHand.push(drawnCard);
-    const melded = attemptMeld(topLeftPlayerHand, 'topLeft');
-    if (!melded) {
-      const discardedCard = topLeftPlayerHand.shift(); // Discard the first card
-      discardPile.push(discardedCard);
-      updateUI();
-      console.log(`Top-left player drew: ${drawnCard}, discarded: ${discardedCard}`);
-    } else {
-      updateUI();
-      console.log(`Top-left player drew: ${drawnCard}, melded.`);
-    }
-  }, 2000);
-
-  // Simulate bottom-left player drawing and discarding
-  setTimeout(() => {
-    const drawnCard = deck.pop();
-    if (!drawnCard) {
-      console.log('Draw pile is empty!');
-      return;
-    }
-    bottomLeftPlayerHand.push(drawnCard);
-    const melded = attemptMeld(bottomLeftPlayerHand, 'bottomLeft');
-    if (!melded) {
-      const discardedCard = bottomLeftPlayerHand.shift(); // Discard the first card
-      discardPile.push(discardedCard);
-      updateUI();
-      console.log(`Bottom-left player drew: ${drawnCard}, discarded: ${discardedCard}`);
-    } else {
-      updateUI();
-      console.log(`Bottom-left player drew: ${drawnCard}, melded.`);
-    }
-  }, 3000);
+    const players = [
+      { hand: topRightPlayerHand, key: 'topRight' },
+      { hand: topLeftPlayerHand, key: 'topLeft' },
+      { hand: bottomLeftPlayerHand, key: 'bottomLeft' }
+    ];
+  
+    players.forEach(({ hand, key }, index) => {
+      setTimeout(() => {
+        // Reshuffle discard pile if draw pile is empty
+        if (deck.length === 0) {
+          if (discardPile.length <= 1) {
+            console.log('Both the draw pile and discard pile are empty!');
+            return;
+          }
+          const topCard = discardPile.pop(); // Keep the top card of the discard pile
+          deck = shuffleDeck([...discardPile]); // Shuffle the remaining discard pile
+          discardPile = [topCard]; // Restore the top card to the discard pile
+          console.log('Reshuffled discard pile into draw pile.');
+        }
+  
+        const drawnCard = deck.pop();
+        hand.push(drawnCard);
+        const melded = attemptMeld(hand, key);
+  
+        if (!melded) {
+          const discardedCard = hand.shift(); // Discard the first card
+          discardPile.push(discardedCard);
+          updateUI();
+          console.log(`${key} player drew: ${drawnCard}, discarded: ${discardedCard}`);
+        } else {
+          updateUI();
+          console.log(`${key} player drew: ${drawnCard}, melded.`);
+        }
+      }, (index + 1) * 1000); // Stagger turns
+    });
 }
 
 // Attach event listeners to buttons
