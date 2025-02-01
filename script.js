@@ -1,5 +1,14 @@
 // 1. Global Variables
 
+// Tracks whether the game has started
+let gameStarted = false; 
+
+// Tracks if it's the main player's turn
+let isMainPlayerTurn = true; 
+
+// Tracks if the player has drawn a card this turn
+let hasDrawnThisTurn = false; 
+
 // Tracks whether the player has played their first meld
 let hasPlayedMeld = false; 
 
@@ -21,6 +30,37 @@ const tableMelds = {
   topLeft: [],      // Top-left player's melds
   bottomLeft: []    // Bottom-left player's melds
 };
+
+// Checks to see if someone has won
+function checkForWinner() {
+    if (playerHand.length === 0) {
+      alert('You win! Congratulations!');
+      endGame();
+      return;
+    }
+    if (topRightPlayerHand.length === 0 || topLeftPlayerHand.length === 0 || bottomLeftPlayerHand.length === 0) {
+      alert('An AI player wins! Better luck next time.');
+      endGame();
+      return;
+    }
+}
+
+// Ends game if someone has won
+function endGame() {
+    // Disable all actions
+    document.getElementById('draw-pile').style.pointerEvents = 'none';
+    document.getElementById('discard-pile').style.pointerEvents = 'none';
+    document.querySelector('.discard-button').disabled = true;
+    document.querySelector('.meld-button').disabled = true;
+  
+    // Add a "New Game" button
+    const newGameButton = document.createElement('button');
+    newGameButton.textContent = 'New Game';
+    newGameButton.addEventListener('click', () => {
+      location.reload(); // Reload the page to restart the game
+    });
+    document.body.appendChild(newGameButton);
+}
 
 // Initialize the game
 function initGame() {
@@ -73,10 +113,17 @@ function dealCards(deck) {
 
 // 3. Player Actions //
 
-// Draw a card from the draw pile or discard pile
+// Draws from piles
 function drawFromPile(pileType) {
-    if (playerHand.length >= 11) {
-      alert('You already have the maximum number of cards (11). Discard a card first.');
+    gameStarted = true; // Mark the game as started
+    if (hasDrawnThisTurn) {
+      alert('You can only draw one card per turn!');
+      return;
+    }
+  
+    const maxHandSize = 11 - tableMelds.player.flat().length; // Adjust max hand size based on melds
+    if (playerHand.length >= maxHandSize) {
+      alert(`You already have the maximum number of cards (${maxHandSize}). Discard a card first.`);
       return;
     }
   
@@ -84,14 +131,13 @@ function drawFromPile(pileType) {
   
     if (pileType === 'draw') {
       if (deck.length === 0) {
-        // Reshuffle the discard pile into the draw pile
         if (discardPile.length <= 1) {
           alert('Both the draw pile and discard pile are empty!');
           return;
         }
-        const topCard = discardPile.pop(); // Keep the top card of the discard pile
-        deck = shuffleDeck([...discardPile]); // Shuffle the remaining discard pile
-        discardPile = [topCard]; // Restore the top card to the discard pile
+        const topCard = discardPile.pop();
+        deck = shuffleDeck([...discardPile]);
+        discardPile = [topCard];
         console.log('Reshuffled discard pile into draw pile.');
       }
       drawnCard = deck.pop();
@@ -105,6 +151,7 @@ function drawFromPile(pileType) {
     }
   
     playerHand.push(drawnCard);
+    hasDrawnThisTurn = true; // Mark that the player has drawn a card this turn
     updateUI();
     console.log(`You drew: ${drawnCard}`);
 }
@@ -123,25 +170,28 @@ function toggleCardSelection(cardIndex) {
   }
 }
 
-// Discard the selected card
 function discardSelectedCard() {
-  if (selectedCards.length !== 1) {
-    alert('You must select exactly one card to discard!');
-    return;
-  }
-  const cardIndex = selectedCards[0];
-  const discardedCard = playerHand.splice(cardIndex, 1)[0];
-  discardPile.push(discardedCard);
-  // Clear selection and update UI
-  selectedCards = [];
-  updateUI();
-  console.log(`You discarded: ${discardedCard}`);
-  // Simulate other players' turns
-  simulateOtherPlayersTurns();
+    if (selectedCards.length !== 1) {
+      alert('You must select exactly one card to discard to finish your turn!');
+      return;
+    }
+    const cardIndex = selectedCards[0];
+    const discardedCard = playerHand.splice(cardIndex, 1)[0];
+    discardPile.push(discardedCard);
+    selectedCards = [];
+    updateUI();
+    console.log(`You discarded: ${discardedCard}`);
+  
+    // Check for a winner
+    checkForWinner();
+  
+    // Simulate other players' turns
+    simulateOtherPlayersTurns();
 }
 
 // Play selected cards as a meld
 function playSelectedCards() {
+    gameStarted = true; // Mark the game as started
   if (selectedCards.length === 0) {
     alert('No cards selected!');
     return;
@@ -491,12 +541,17 @@ function attemptMeld(hand, playerKey) {
   return false; // No meld possible
 }
 
+// Simulate other players' turns
 function simulateOtherPlayersTurns() {
     const players = [
       { hand: topRightPlayerHand, key: 'topRight' },
       { hand: topLeftPlayerHand, key: 'topLeft' },
       { hand: bottomLeftPlayerHand, key: 'bottomLeft' }
     ];
+  
+    // Disable draw buttons for the main player
+    document.getElementById('draw-pile').style.pointerEvents = 'none';
+    document.getElementById('discard-pile').style.pointerEvents = 'none';
   
     players.forEach(({ hand, key }, index) => {
       setTimeout(() => {
@@ -525,9 +580,25 @@ function simulateOtherPlayersTurns() {
           updateUI();
           console.log(`${key} player drew: ${drawnCard}, melded.`);
         }
+  
+        // Re-enable draw buttons after all AI players have taken their turns
+        if (index === players.length - 1) {
+          document.getElementById('draw-pile').style.pointerEvents = 'auto';
+          document.getElementById('discard-pile').style.pointerEvents = 'auto';
+          hasDrawnThisTurn = false; // Reset the draw flag for the main player's next turn
+        }
       }, (index + 1) * 1000); // Stagger turns
     });
 }
+
+// Attach event listener to the "New Game" button
+document.getElementById('new-game-button').addEventListener('click', () => {
+    if (gameStarted && confirm('Are you sure you want to start a new game? All progress will be lost.')) {
+      location.reload(); // Reload the page to restart the game
+    } else if (!gameStarted) {
+      location.reload(); // No prompt if the game hasn't started yet
+    }
+});
 
 // Attach event listeners to buttons
 document.querySelector('.discard-button').addEventListener('click', discardSelectedCard);

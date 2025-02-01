@@ -179,6 +179,28 @@
   .meld-button {
     right: 20%; /* Positioned to the right of the hand */
   }
+  
+  /* New Game Button */
+  .new-game-button {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 10; /* Ensure it stays on top of other elements */
+    padding: 10px 20px;
+    font-size: 16px;
+    font-weight: bold;
+    color: white;
+    background-color: #ff5722; /* Orange color for visibility */
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
+  }
+  
+  .new-game-button:hover {
+    background-color: #e64a19; /* Darker orange on hover */
+  }
+  
   /* Melded Cards */
   .meld {
     position: absolute;
