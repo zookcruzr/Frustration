@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Card Game</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="game-container">
+    <!-- Floor -->
+    <div class="floor"></div>
+    <!-- Table -->
+    <div class="table">
+      <div class="left"></div>
+      <div class="right"></div>
+    </div>
+    <!-- Avatars -->
+    <div class="avatar top-left"></div>
+    <div class="avatar top-right"></div>
+    <div class="avatar bottom-left"></div>
+    <div class="avatar bottom-right"></div>
+    <!-- Draw and Discard Piles -->
+    <div class="draw-pile" id="draw-pile">
+      <img src="https://raw.githubusercontent.com/zookcruzr/Frustration/main/assets/cards/back-1.png" alt="Draw Pile">
+    </div>
+    <div class="discard-pile" id="discard-pile"></div>
+    <!-- Player's Hand -->
+    <div class="hand" id="player-hand"></div>
+    <!-- Action Buttons -->
+    <button class="action-button discard-button">Discard</button>
+    <button class="action-button meld-button">Meld</button>
+    <!-- Melded Cards -->
+    <div class="meld player-meld" id="melds"></div>
+    <div class="meld top-left-meld"></div>
+    <div class="meld top-right-meld"></div>
+    <div class="meld bottom-left-meld"></div>
+    <div class="meld bottom-right-meld"></div>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>
