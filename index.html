@@ -3,43 +3,65 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Card Game</title>
-  <link rel="stylesheet" href="style.css">
+  <title>Frustration Card Game</title>
+  <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
-  <!-- New Game Button -->
-  <button id="new-game-button" class="new-game-button" title="Start a new game">New Game</button>
-
-  <div class="game-container">
-    <!-- Floor -->
-    <div class="floor"></div>
-    <!-- Table -->
-    <div class="table">
-      <div class="left"></div>
-      <div class="right"></div>
+  <!-- Start Screen -->
+  <div id="start-screen" class="screen">
+    <h1>Welcome to Frustration!</h1>
+    <button id="start-game">Start New Game</button>
+    <div id="settings">
+      <label>
+        Number of Players:
+        <select id="num-players">
+          <option value="2">2</option>
+          <option value="3">3</option>
+          <option value="4" selected>4</option>
+          <option value="5">5</option>
+        </select>
+      </label>
     </div>
-    <!-- Avatars -->
-    <div class="avatar top-left"></div>
-    <div class="avatar top-right"></div>
-    <div class="avatar bottom-left"></div>
-    <div class="avatar bottom-right"></div>
-    <!-- Draw and Discard Piles -->
-    <div class="draw-pile" id="draw-pile">
-      <img src="https://raw.githubusercontent.com/zookcruzr/Frustration/main/assets/cards/back-1.png" alt="Draw Pile">
-    </div>
-    <div class="discard-pile" id="discard-pile"></div>
-    <!-- Player's Hand -->
-    <div class="hand" id="player-hand"></div>
-    <!-- Action Buttons -->
-    <button class="action-button discard-button">Discard</button>
-    <button class="action-button meld-button">Meld</button>
-    <!-- Melded Cards -->
-     <div class="meld player-meld" id="player-meld" ondragover="allowDrop(event)" ondrop="dropCardOnMeld(event)"></div>
-     <div class="meld top-left-meld" id="top-left-meld" ondragover="allowDrop(event)" ondrop="dropCardOnMeld(event)"></div>
-     <div class="meld top-right-meld" id="top-right-meld" ondragover="allowDrop(event)" ondrop="dropCardOnMeld(event)"></div>
-     <div class="meld bottom-left-meld" id="bottom-left-meld" ondragover="allowDrop(event)" ondrop="dropCardOnMeld(event)"></div>
-     <div class="meld bottom-right-meld" id="bottom-right-meld" ondragover="allowDrop(event)" ondrop="dropCardOnMeld(event)"></div>
   </div>
-  <script src="script.js"></script>
+
+  <!-- Game Screen -->
+  <div id="game-container" class="screen" style="display: none;">
+    <div id="score-board"></div>
+
+    <!-- Draw and Discard Piles -->
+    <div id="piles">
+      <div id="draw-pile"></div>
+      <div id="discard-pile"></div>
+    </div>
+
+    <!-- Player Hands -->
+    <div id="player-hands">
+      <div id="player-0-hand" class="player-hand"></div>
+      <div id="player-1-hand" class="player-hand"></div>
+      <div id="player-2-hand" class="player-hand"></div>
+      <div id="player-3-hand" class="player-hand"></div>
+      <div id="player-4-hand" class="player-hand"></div>
+    </div>
+
+    <!-- Meld Spaces -->
+    <div id="meld-spaces">
+      <div id="player-0-melds" class="meld-space"></div>
+      <div id="player-1-melds" class="meld-space"></div>
+      <div id="player-2-melds" class="meld-space"></div>
+      <div id="player-3-melds" class="meld-space"></div>
+      <div id="player-4-melds" class="meld-space"></div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div id="action-buttons">
+      <button id="meld-button">Meld</button>
+      <button id="discard-button">Discard</button>
+    </div>
+  </div>
+
+  <script src="js/helpers.js"></script>
+  <script src="js/gameLogic.js"></script>
+  <script src="js/ai.js"></script>
+  <script src="js/ui.js"></script>
 </body>
 </html>
