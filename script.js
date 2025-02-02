@@ -3,6 +3,9 @@
 // Tracks whether the game has started
 let gameStarted = false; 
 
+// Tracks whether the game has ended
+let isGameOver = false; 
+
 // Tracks if it's the main player's turn
 let isMainPlayerTurn = true; 
 
@@ -22,13 +25,15 @@ let selectedCards = [];
 let topRightPlayerHand = [];
 let topLeftPlayerHand = [];
 let bottomLeftPlayerHand = [];
+let bottomRightPlayerHand = []; 
 
 // Track melds on the table
 const tableMelds = {
   player: [],       // Main player's melds
   topRight: [],     // Top-right player's melds
   topLeft: [],      // Top-left player's melds
-  bottomLeft: []    // Bottom-left player's melds
+  bottomLeft: [],    // Bottom-left player's melds
+  bottomRight: []   // Bottom-right player's melds
 };
 
 // Checks to see if someone has won
@@ -44,22 +49,28 @@ function checkForWinner() {
       return;
     }
 }
-
+  
 // Ends game if someone has won
 function endGame() {
+    isGameOver = true; // Mark the game as over
+  
     // Disable all actions
     document.getElementById('draw-pile').style.pointerEvents = 'none';
     document.getElementById('discard-pile').style.pointerEvents = 'none';
     document.querySelector('.discard-button').disabled = true;
     document.querySelector('.meld-button').disabled = true;
   
-    // Add a "New Game" button
-    const newGameButton = document.createElement('button');
-    newGameButton.textContent = 'New Game';
-    newGameButton.addEventListener('click', () => {
-      location.reload(); // Reload the page to restart the game
-    });
-    document.body.appendChild(newGameButton);
+    // Add a "New Game" button if it doesn't already exist
+    const newGameButton = document.getElementById('new-game-button');
+    if (!newGameButton) {
+      const button = document.createElement('button');
+      button.id = 'new-game-button';
+      button.textContent = 'New Game';
+      button.addEventListener('click', resetGame);
+      document.body.appendChild(button);
+    }
+  
+    gameStarted = false; // Reset the gameStarted flag
 }
 
 // Initialize the game
@@ -69,7 +80,42 @@ function initGame() {
     dealCards(deck);
     updateUI();
 }
+
+// Resets game once New Game is selected
+function resetGame() {
+    console.log('Resetting game...');
   
+    // Clear all global variables
+    deck = [];
+    discardPile = [];
+    playerHand = [];
+    selectedCards = [];
+    topRightPlayerHand = [];
+    topLeftPlayerHand = [];
+    bottomLeftPlayerHand = [];
+    tableMelds = {
+      player: [],
+      topRight: [],
+      topLeft: [],
+      bottomLeft: []
+    };
+    hasPlayedMeld = false;
+    gameStarted = false;
+    isGameOver = false;
+  
+    // Clear the UI
+    document.getElementById('player-hand').innerHTML = '';
+    document.getElementById('discard-pile').innerHTML = '';
+    document.querySelector('.player-meld').innerHTML = '';
+    document.querySelector('.top-left-meld').innerHTML = '';
+    document.querySelector('.top-right-meld').innerHTML = '';
+    document.querySelector('.bottom-left-meld').innerHTML = '';
+  
+    // Reinitialize the game
+    initGame();
+  
+    console.log('Game reset successfully.');
+}
 
 // 2. Deck and Game Initialization //
 
@@ -108,14 +154,16 @@ function dealCards(deck) {
   topRightPlayerHand = deck.splice(0, 10); // Top-right player gets 10 cards
   topLeftPlayerHand = deck.splice(0, 10); // Top-left player gets 10 cards
   bottomLeftPlayerHand = deck.splice(0, 10); // Bottom-left player gets 10 cards
+  bottomRightPlayerHand = deck.splice(0, 10); // Bottom-right player gets 10 cards
 }
 
 
 // 3. Player Actions //
 
-// Draws from piles
+// Draw a card from the draw pile or discard pile
 function drawFromPile(pileType) {
-    gameStarted = true; // Mark the game as started
+    if (isGameOver) return; // Prevent drawing if the game is over
+  
     if (hasDrawnThisTurn) {
       alert('You can only draw one card per turn!');
       return;
@@ -261,6 +309,63 @@ function validateMeld(cards) {
   return sets.length > 0 || runs.length > 0;
 }
 
+// Allow dropping by preventing the default behavior
+function allowDrop(event) {
+    event.preventDefault();
+}
+  
+// Handle the start of dragging a card
+function dragStart(event, index) {
+    event.dataTransfer.setData('text/plain', index); // Store the card index
+}
+  
+// Handle dropping a card onto a meld space
+function dropCard(event) {
+    event.preventDefault();
+    const cardIndex = event.dataTransfer.getData('text/plain'); // Retrieve the card index
+    const card = playerHand[cardIndex]; // Get the card from the player's hand
+  
+    // Find the target meld space
+    const meldSpace = event.target.closest('.meld');
+    if (!meldSpace) {
+      console.error('Meld space not found!');
+      return;
+    }
+  
+    const playerKey = getPlayerKeyFromMeldSpace(meldSpace.id); // Determine which player's meld space this is
+    const melds = tableMelds[playerKey];
+  
+    // Check if the card can be added to any existing meld
+    let addedToMeld = false;
+    for (const meld of melds) {
+      const newMeld = [...meld, card];
+      if (validateMeld(newMeld)) {
+        meld.push(card);
+        playerHand.splice(cardIndex, 1); // Remove the card from the player's hand
+        updateUI();
+        console.log(`Added ${card} to ${playerKey}'s meld.`);
+        addedToMeld = true;
+        break;
+      }
+    }
+  
+    if (!addedToMeld) {
+      alert('The selected card cannot be added to any existing meld!');
+    }
+}
+  
+// Helper function to determine the player key from the meld space ID
+function getPlayerKeyFromMeldSpace(meldSpaceId) {
+    const keyMap = {
+      'player-meld': 'player',
+      'top-left-meld': 'topLeft',
+      'top-right-meld': 'topRight',
+      'bottom-left-meld': 'bottomLeft',
+      'bottom-right-meld': 'bottomRight'
+    };
+    return keyMap[meldSpaceId];
+}
+
 // Helper function to find sets (e.g., three Kings)
 function findSets(hand) {
   const rankCount = {};
@@ -280,14 +385,21 @@ function findSets(hand) {
 
 function findRuns(hand) {
     const suitMap = {};
+    let wildcards = []; // Track Jokers as wildcards
+  
+    // Separate Jokers and group cards by suit
     hand.forEach(card => {
-      if (card.startsWith('joker')) return; // Skip Jokers
+      if (card.startsWith('joker')) {
+        wildcards.push(card); // Add Joker to the wildcard list
+        return;
+      }
       const [rank, , suit] = card.split(' ');
       if (!suitMap[suit]) suitMap[suit] = [];
       suitMap[suit].push(rank);
     });
   
     const runs = [];
+  
     for (const suit in suitMap) {
       const sortedRanks = suitMap[suit]
         .map(rank => getRankValue(rank))
@@ -295,30 +407,28 @@ function findRuns(hand) {
         .sort((a, b) => a - b);
   
       let currentRun = [];
-      let wildcardsUsed = countWildcards(hand);
+      let wildcardsUsed = wildcards.length; // Use Jokers as wildcards
   
       for (let i = 0; i < sortedRanks.length; i++) {
         if (currentRun.length === 0 || sortedRanks[i] === sortedRanks[i - 1] + 1) {
           currentRun.push(sortedRanks[i]);
         } else if (wildcardsUsed > 0) {
+          // Use a Joker to fill the gap
           currentRun.push(sortedRanks[i - 1] + 1);
           wildcardsUsed--;
-          i--;
+          i--; // Retry the current card
         } else {
-          if (currentRun.length + wildcardsUsed >= 3) {
+          // Check if the current run is valid (at least 3 cards)
+          if (currentRun.length >= 3) {
             runs.push(currentRun.map(rank => `${getRankName(rank)} of ${suit}`));
           }
           currentRun = [sortedRanks[i]];
         }
       }
   
+      // Check the last run
       if (currentRun.length + wildcardsUsed >= 3) {
         runs.push(currentRun.map(rank => `${getRankName(rank)} of ${suit}`));
-      }
-  
-      // Special case: Allow Ace as a high card (Q-K-A)
-      if (sortedRanks.includes(12) && sortedRanks.includes(11) && sortedRanks.includes(0)) {
-        runs.push(['Q', 'K', 'A'].map(rank => `${rank} of ${suit}`));
       }
     }
   
@@ -356,18 +466,21 @@ function countWildcards(hand) {
 
 // Map card names to image URLs
 function getCardImage(card) {
-  if (card === 'joker-black') {
-    return 'https://raw.githubusercontent.com/zookcruzr/Frustration/main/assets/cards/joker-black.png';
-  }
-  if (card === 'joker-red') {
-    return 'https://raw.githubusercontent.com/zookcruzr/Frustration/main/assets/cards/joker-red.png';
-  }
-
-  // Handle regular cards
-  const [rank, , suit] = card.split(' ');
-  const suitLower = suit ? suit.toLowerCase() : ''; // Ensure suit exists
-  const rankLower = rank === '10' ? '10' : rank.toLowerCase(); // Handle '10' separately
-  return `https://raw.githubusercontent.com/zookcruzr/Frustration/main/assets/cards/${suitLower}-${rankLower}.png`;
+    if (card.startsWith('joker')) {
+      return 'https://raw.githubusercontent.com/zookcruzr/Frustration/main/assets/cards/joker.png'; // Joker image
+    }
+  
+    const [rank, suit] = card.split(' ');
+    const rankMap = {
+      'A': 'ace', '2': '2', '3': '3', '4': '4', '5': '5', '6': '6',
+      '7': '7', '8': '8', '9': '9', '10': '10', 'J': 'jack', 'Q': 'queen', 'K': 'king'
+    };
+    const suitMap = { 'H': 'hearts', 'D': 'diamonds', 'C': 'clubs', 'S': 'spades' };
+  
+    const rankName = rankMap[rank];
+    const suitName = suitMap[suit];
+  
+    return `https://raw.githubusercontent.com/zookcruzr/Frustration/main/assets/cards/${rankName}_of_${suitName}.png`;
 }
 
 // Map card rank to numerical value
@@ -380,6 +493,11 @@ function getRankValue(rank) {
 function getRankName(value) {
   const rankOrder = ['ace', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'jack', 'queen', 'king', 'ace'];
   return rankOrder[value];
+}
+
+// Helper function to convert playerKey to meld space ID
+function getPlayerMeldSpaceId(playerKey) {
+    return playerKey.replace(/([a-z])([A-Z])/g, '$1-$2').toLowerCase() + '-meld';
 }
 
 // Sort meld cards in sequential order
@@ -407,49 +525,108 @@ function sortMeld(cards) {
     sortedCards.push(...cards.filter(card => card.startsWith('joker')));
   
     return sortedCards;
-  }
+}
 
   
 // 6. UI Updates //
 
 // Update the UI to display card images
 function updateUI() {
-  const playerHandDiv = document.getElementById('player-hand');
-  playerHandDiv.innerHTML = ''; // Clear previous content
-  playerHand.forEach((card, index) => {
-    const img = document.createElement('img');
-    img.src = getCardImage(card);
-    img.alt = card;
-    // Highlight selected cards
-    if (selectedCards.includes(index)) {
-      img.classList.add('selected');
+    console.log('Updating UI...');
+  
+    // Update player's hand
+    const playerHandDiv = document.getElementById('player-hand');
+    playerHandDiv.innerHTML = ''; // Clear previous content
+    playerHand.forEach((card, index) => {
+      const img = document.createElement('img');
+      img.src = getCardImage(card);
+      img.alt = card;
+  
+      // Highlight selected cards
+      if (selectedCards.includes(index)) {
+        img.classList.add('selected');
+      }
+  
+      // Enable drag-and-drop
+      img.draggable = true;
+  
+      // Add event listeners for card interactions
+      img.addEventListener('click', () => toggleCardSelection(index)); // Select on click
+      img.addEventListener('dragstart', (e) => dragStart(e, index)); // Start dragging
+      img.addEventListener('dragover', (e) => e.preventDefault()); // Allow dropping
+      img.addEventListener('drop', (e) => dropCardOnHand(e, index)); // Handle dropping within the hand
+  
+      playerHandDiv.appendChild(img);
+    });
+  
+    // Display the top card of the discard pile or a card back if empty
+    const discardPileDiv = document.getElementById('discard-pile');
+    if (discardPile.length > 0) {
+      const topCard = discardPile[discardPile.length - 1];
+      const img = document.createElement('img');
+      img.src = getCardImage(topCard);
+      img.alt = topCard;
+      discardPileDiv.innerHTML = '';
+      discardPileDiv.appendChild(img);
+    } else {
+      discardPileDiv.innerHTML = `<img src="https://raw.githubusercontent.com/zookcruzr/Frustration/main/assets/cards/back-1.png" alt="Card Back">`;
     }
-    img.draggable = true; // Enable drag-and-drop
-    img.addEventListener('click', () => toggleCardSelection(index)); // Select on click
-    img.addEventListener('dragstart', () => dragStart(index));
-    img.addEventListener('dragover', (e) => e.preventDefault());
-    img.addEventListener('drop', () => drop(index));
-    playerHandDiv.appendChild(img);
-  });
-
-  // Display the top card of the discard pile or a card back if empty
-  const discardPileDiv = document.getElementById('discard-pile');
-  if (discardPile.length > 0) {
-    const topCard = discardPile[discardPile.length - 1];
-    const img = document.createElement('img');
-    img.src = getCardImage(topCard);
-    img.alt = topCard;
-    discardPileDiv.innerHTML = '';
-    discardPileDiv.appendChild(img);
-  } else {
-    discardPileDiv.innerHTML = `<img src="https://raw.githubusercontent.com/zookcruzr/Frustration/main/assets/cards/back-1.png" alt="Card Back">`;
-  }
+  
+    console.log('UI updated.');
 }
 
 // Drag-and-drop functionality
 let draggedIndex = null;
-function dragStart(index) {
-  draggedIndex = index;
+
+function dragStart(event, index) {
+  event.dataTransfer.setData('text/plain', index); // Store the card index
+  draggedIndex = index; // Track the dragged card's index
+}
+function dropCardOnHand(event, targetIndex) {
+    event.preventDefault();
+    const draggedCardIndex = parseInt(event.dataTransfer.getData('text/plain'), 10);
+  
+    if (draggedCardIndex === null || draggedCardIndex === targetIndex) return;
+  
+    // Reorder the player's hand
+    const [draggedCard] = playerHand.splice(draggedCardIndex, 1);
+    playerHand.splice(targetIndex, 0, draggedCard);
+  
+    // Update the UI
+    updateUI();
+}
+function dropCardOnMeld(event) {
+    event.preventDefault();
+    const draggedCardIndex = parseInt(event.dataTransfer.getData('text/plain'), 10);
+    const draggedCard = playerHand[draggedCardIndex];
+  
+    // Find the target meld space
+    const meldSpace = event.target.closest('.meld');
+    if (!meldSpace) {
+      console.error('Meld space not found!');
+      return;
+    }
+  
+    const playerKey = getPlayerKeyFromMeldSpace(meldSpace.id); // Determine which player's meld space this is
+    const melds = tableMelds[playerKey];
+  
+    // Check if the card can be added to any existing meld
+    let addedToMeld = false;
+    for (const meld of melds) {
+      const newMeld = [...meld, draggedCard];
+      if (validateMeld(newMeld)) {
+        meld.push(draggedCard);
+        playerHand.splice(draggedCardIndex, 1); // Remove the card from the player's hand
+        updateUI();
+        console.log(`Added ${draggedCard} to ${playerKey}'s meld.`);
+        addedToMeld = true;
+        break;
+      }
+    }
+  
+    if (!addedToMeld) {
+      alert('The selected card cannot be added to any existing meld!');
+    }
 }
 function drop(targetIndex) {
   if (draggedIndex === null || draggedIndex === targetIndex) return;
@@ -470,22 +647,6 @@ function showMeld(meldElement, cards) {
     // Create a new meld group container
     const meldGroup = document.createElement('div');
     meldGroup.classList.add('meld-group');
-    meldGroup.setAttribute('draggable', true); // Make the meld group draggable
-  
-    // Add drag-and-drop event listeners
-    meldGroup.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      meldGroup.style.border = '2px dashed green'; // Highlight valid target
-    });
-  
-    meldGroup.addEventListener('dragleave', () => {
-      meldGroup.style.border = ''; // Remove highlight
-    });
-  
-    meldGroup.addEventListener('drop', (e) => {
-      meldGroup.style.border = ''; // Remove highlight
-      handleCardDropOnMeld(e, meldGroup);
-    });
   
     // Sort the cards in the meld
     const sortedCards = sortMeld(cards);
@@ -499,7 +660,7 @@ function showMeld(meldElement, cards) {
       meldGroup.appendChild(img);
     });
   
-    // Add the meld group to the meld space
+    // Append the new meld group to the meld space
     meldElement.appendChild(meldGroup);
 }
 
@@ -508,46 +669,56 @@ function showMeld(meldElement, cards) {
 
 // Attempt to form a meld for an AI player
 function attemptMeld(hand, playerKey) {
-  const sets = findSets(hand);
-  const runs = findRuns(hand);
-
-  // Check if there are any valid melds
-  if (sets.length > 0 || runs.length > 0) {
-    let meld;
-    if (sets.length > 0) {
-      meld = sets[0]; // Use the first set found
-    } else {
-      meld = runs[0]; // Use the first run found
-    }
-
-    // Remove the meld cards from the player's hand
-    meld.forEach(card => {
-      const index = hand.indexOf(card);
-      if (index !== -1) {
-        hand.splice(index, 1);
+    console.log(`Attempting meld for ${playerKey} player...`);
+    const sets = findSets(hand);
+    const runs = findRuns(hand);
+  
+    if (sets.length > 0 || runs.length > 0) {
+      console.log(`${playerKey} player found a valid meld.`);
+      // Remove the melded cards from the player's hand
+      const meldedCards = sets.concat(runs).flat();
+      meldedCards.forEach(card => {
+        const index = hand.indexOf(card);
+        if (index !== -1) hand.splice(index, 1);
+      });
+  
+      // Convert playerKey to meld space ID
+      const meldSpaceId = getPlayerMeldSpaceId(playerKey); // Use the helper function
+      const meldSpace = document.getElementById(meldSpaceId);
+  
+      if (!meldSpace) {
+        console.error(`Meld space not found for ${playerKey} player (ID: ${meldSpaceId})`);
+        return false;
       }
-    });
-
-    // Add the meld to the table
-    tableMelds[playerKey].push(meld);
-
-    // Show the meld in the UI
-    const meldElement = document.querySelector(`.${playerKey}-meld`);
-    showMeld(meldElement, meld);
-
-    return true; // Meld successful
-  }
-
-  return false; // No meld possible
+  
+      // Show the meld on the table
+      showMeld(meldSpace, meldedCards);
+  
+      // Track the meld in the global tableMelds object
+      tableMelds[playerKey].push(meldedCards);
+      return true;
+    }
+  
+    console.log(`${playerKey} player could not find a valid meld.`);
+    return false;
 }
 
 // Simulate other players' turns
 function simulateOtherPlayersTurns() {
+    console.log('simulateOtherPlayersTurns called.');
+    if (isGameOver) {
+      console.log('Game is over. Skipping AI turns.');
+      return; // Stop AI turns if the game is over
+    }
+  
     const players = [
       { hand: topRightPlayerHand, key: 'topRight' },
       { hand: topLeftPlayerHand, key: 'topLeft' },
-      { hand: bottomLeftPlayerHand, key: 'bottomLeft' }
+      { hand: bottomLeftPlayerHand, key: 'bottomLeft' },
+      { hand: bottomRightPlayerHand, key: 'bottomRight' }
     ];
+  
+    console.log('Simulating AI players\' turns...');
   
     // Disable draw buttons for the main player
     document.getElementById('draw-pile').style.pointerEvents = 'none';
@@ -555,6 +726,13 @@ function simulateOtherPlayersTurns() {
   
     players.forEach(({ hand, key }, index) => {
       setTimeout(() => {
+        if (isGameOver) {
+          console.log('Game is over. Skipping remaining AI turns.');
+          return; // Stop AI turns if the game is over
+        }
+  
+        console.log(`Simulating turn for ${key} player...`);
+  
         // Reshuffle discard pile if draw pile is empty
         if (deck.length === 0) {
           if (discardPile.length <= 1) {
@@ -569,16 +747,18 @@ function simulateOtherPlayersTurns() {
   
         const drawnCard = deck.pop();
         hand.push(drawnCard);
+        console.log(`${key} player drew: ${drawnCard}`);
+  
         const melded = attemptMeld(hand, key);
   
         if (!melded) {
           const discardedCard = hand.shift(); // Discard the first card
           discardPile.push(discardedCard);
           updateUI();
-          console.log(`${key} player drew: ${drawnCard}, discarded: ${discardedCard}`);
+          console.log(`${key} player discarded: ${discardedCard}`);
         } else {
           updateUI();
-          console.log(`${key} player drew: ${drawnCard}, melded.`);
+          console.log(`${key} player melded.`);
         }
   
         // Re-enable draw buttons after all AI players have taken their turns
@@ -586,6 +766,7 @@ function simulateOtherPlayersTurns() {
           document.getElementById('draw-pile').style.pointerEvents = 'auto';
           document.getElementById('discard-pile').style.pointerEvents = 'auto';
           hasDrawnThisTurn = false; // Reset the draw flag for the main player's next turn
+          console.log('AI turns complete. Main player can now draw.');
         }
       }, (index + 1) * 1000); // Stagger turns
     });
@@ -594,9 +775,9 @@ function simulateOtherPlayersTurns() {
 // Attach event listener to the "New Game" button
 document.getElementById('new-game-button').addEventListener('click', () => {
     if (gameStarted && confirm('Are you sure you want to start a new game? All progress will be lost.')) {
-      location.reload(); // Reload the page to restart the game
+      resetGame(); // Reset the game state
     } else if (!gameStarted) {
-      location.reload(); // No prompt if the game hasn't started yet
+      resetGame(); // No prompt if the game hasn't started yet
     }
 });
 

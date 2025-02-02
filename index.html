@@ -34,11 +34,11 @@
     <button class="action-button discard-button">Discard</button>
     <button class="action-button meld-button">Meld</button>
     <!-- Melded Cards -->
-    <div class="meld player-meld" id="melds"></div>
-    <div class="meld top-left-meld"></div>
-    <div class="meld top-right-meld"></div>
-    <div class="meld bottom-left-meld"></div>
-    <div class="meld bottom-right-meld"></div>
+     <div class="meld player-meld" id="player-meld" ondragover="allowDrop(event)" ondrop="dropCardOnMeld(event)"></div>
+     <div class="meld top-left-meld" id="top-left-meld" ondragover="allowDrop(event)" ondrop="dropCardOnMeld(event)"></div>
+     <div class="meld top-right-meld" id="top-right-meld" ondragover="allowDrop(event)" ondrop="dropCardOnMeld(event)"></div>
+     <div class="meld bottom-left-meld" id="bottom-left-meld" ondragover="allowDrop(event)" ondrop="dropCardOnMeld(event)"></div>
+     <div class="meld bottom-right-meld" id="bottom-right-meld" ondragover="allowDrop(event)" ondrop="dropCardOnMeld(event)"></div>
   </div>
   <script src="script.js"></script>
 </body>
