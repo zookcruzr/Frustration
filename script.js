@@ -539,7 +539,15 @@ function updateUI() {
     playerHandDiv.innerHTML = ''; // Clear previous content
     playerHand.forEach((card, index) => {
       const img = document.createElement('img');
-      img.src = getCardImage(card);
+      const imageUrl = getCardImage(card); // Get the image URL
+      console.log(`Card: ${card}, Image URL: ${imageUrl}`); // Log the generated URL
+  
+      if (!imageUrl) {
+        console.error(`Failed to load image for card: ${card}`);
+        return;
+      }
+  
+      img.src = imageUrl;
       img.alt = card;
   
       // Highlight selected cards
@@ -577,11 +585,12 @@ function updateUI() {
 
 // Drag-and-drop functionality
 let draggedIndex = null;
-
+// Start the drag operation
 function dragStart(event, index) {
   event.dataTransfer.setData('text/plain', index); // Store the card index
   draggedIndex = index; // Track the dragged card's index
 }
+// Drop on Hand (Reordering)
 function dropCardOnHand(event, targetIndex) {
     event.preventDefault();
     const draggedCardIndex = parseInt(event.dataTransfer.getData('text/plain'), 10);
@@ -595,6 +604,7 @@ function dropCardOnHand(event, targetIndex) {
     // Update the UI
     updateUI();
 }
+// Drop on Meld Space (Adding to Melds)
 function dropCardOnMeld(event) {
     event.preventDefault();
     const draggedCardIndex = parseInt(event.dataTransfer.getData('text/plain'), 10);
@@ -627,14 +637,6 @@ function dropCardOnMeld(event) {
     if (!addedToMeld) {
       alert('The selected card cannot be added to any existing meld!');
     }
-}
-function drop(targetIndex) {
-  if (draggedIndex === null || draggedIndex === targetIndex) return;
-  // Insert the dragged card at the target position
-  const [draggedCard] = playerHand.splice(draggedIndex, 1);
-  playerHand.splice(targetIndex, 0, draggedCard);
-  // Update the UI
-  updateUI();
 }
 
 // Show melds dynamically
